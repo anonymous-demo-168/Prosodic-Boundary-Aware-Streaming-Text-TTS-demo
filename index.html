@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prosodic Boundary-Aware Streaming TTS — InterSpeech Demo</title>
+    <style>
+        :root {
+            --bg: #f7f8fa;
+            --surface: #ffffff;
+            --border: #e2e6ea;
+            --text: #2c3e50;
+            --muted: #64748b;
+            --accent: #3b82f6;
+            --accent-soft: #eff6ff;
+            --success: #0d9488;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 28px 24px;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+        h2 { font-size: 1.1rem; color: var(--muted); font-weight: 500; margin-bottom: 28px; }
+        h3 { font-size: 1rem; font-weight: 600; margin: 0 0 8px 0; color: var(--text); }
+        .arch-section { margin-bottom: 36px; }
+        .arch-img { max-width: 100%; width: auto; height: auto; display: block; margin: 0 auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); vertical-align: middle; }
+        .arch-params { margin-top: 14px; padding: 12px 16px; background: var(--accent-soft); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.25); font-size: 0.9rem; color: var(--text); }
+        .arch-params strong { color: var(--accent); }
+        .sample-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .sample-card h3 { margin-bottom: 16px; }
+        .ref-box {
+            background: var(--accent-soft);
+            border-left: 4px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        .ref-box .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+        .text-content { font-size: 0.9rem; line-height: 1.55; color: var(--text); white-space: pre-wrap; max-height: 120px; overflow-y: auto; }
+        .target-label { font-size: 0.8rem; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+        audio { width: 100%; height: 40px; margin-top: 8px; }
+        .systems { display: grid; gap: 16px; margin-top: 20px; }
+        .system-row {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            align-items: start;
+            gap: 16px;
+        }
+        @media (max-width: 640px) {
+            .system-row { grid-template-columns: 1fr; }
+        }
+        .system-name { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+        .system-name.proposed { color: var(--success); }
+        .audio-cell { min-width: 0; }
+        footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--muted); }
+    </style>
+</head>
+<body>
+
+    <h1>Prosodic Boundary-Aware Streaming Generation for LLM-Based TTS with Streaming Text Input</h1>
+    <h2>InterSpeech 2026 — Audio Demo</h2>
+
+    <section class="arch-section">
+        <img class="arch-img" src="architecture.png" alt="Model architecture diagram" />
+        <p class="arch-params"><strong>Chunk size = 5 words</strong> (all systems); <strong>Lookahead = 2 words</strong> (proposed method only).</p>
+    </section>
+
+    <div id="samples-container"></div>
+
+    <footer>
+        Audio samples for comparison. Proposed (Ours), Sliding-Window, and Interleaved systems.
+    </footer>
+
+    <script>
+        (function () {
+            // Samples: sample_id | prompt | ref_file | target_text
+            const samples = [
+                {
+                    id: "common_voice_en_2331-common_voice_en_2330",
+                    ref: "common_voice_en_2331",
+                    prompt: "You've got the Mayor and Pullman backed against a wall.",
+                    target: "Her old man was Doc Mitchell. Everyone in town knew Doc Mitchell as the kindly physician who'd delivered half the population and tended to injuries with gentle hands and endless patience. He'd been practicing medicine since before the hospital was built, making house calls in his battered Ford truck with a black bag full of miracles. His daughter Jenny inherited none of his bedside manner but all of his stubbornness, which made for some explosive arguments over Sunday dinners. The doc believed in old-fashioned remedies and slow healing, while Jenny pushed for modern techniques and quick fixes fresh out of medical school. Still, when Doc Mitchell passed last winter, it was Jenny who organized his files, donated his instruments to the historical society, and kept his tattered medical books displayed prominently in her own clinic's waiting room. Townsfolk still come by sometimes just to share stories about the man who remembered every childhood vaccination he'd ever given them. Jenny listens while adjusting her stethoscope, realizing slowly that healing isn't just about sutures and prescriptions, but about the quiet legacy of showing up decade after decade with steady hands and a willingness to sit awhile. The clinic smells faintly of antiseptic and peppermint candies, just like her father's office always did."
+                },
+                {
+                    id: "common_voice_en_38573-common_voice_en_38570",
+                    ref: "common_voice_en_38573",
+                    prompt: "The book that most interested the boy told the stories of the famous alchemists.",
+                    target: "It's easy, and yet I've never done it before, he thought. Standing before the simple wooden easel with a fresh canvas, Michael felt both excitement and apprehension. The art teacher had assured the class that anyone could paint, that the joy was in the process rather than perfection. Still, his hands trembled slightly as he dipped the brush into the vibrant blue acrylic. The first stroke was hesitant, a wobbly line near the top of the canvas. Then something shifted. With each subsequent movement, his confidence grew, the colors blending in ways he hadn't anticipated but found strangely satisfying. Time seemed to dissolve as he worked, the afternoon light fading outside the studio windows. When he finally stepped back, Michael was surprised to see not the mess he'd feared, but something with energy and life. It wasn't sophisticated or technically impressive, yet it held a raw honesty that made him smile. This simple act he'd avoided for years out of fear of failure had become a doorway to unexpected pleasure. Around him, other students were packing up their supplies, some chatting about their work, others quietly contemplating their creations. Michael realized how often he'd talked himself out of trying new things, assuming difficulty where none necessarily existed. As he wiped his brushes clean, he made a silent promise to approach other unfamiliar experiences with this same openness. The painting would dry overnight, and tomorrow he'd see it with fresh eyes, but already he knew this first attempt had changed something fundamental in him."
+                },
+                {
+                    id: "common_voice_en_64065-common_voice_en_64063",
+                    ref: "common_voice_en_64065",
+                    prompt: "If you start your emails with \"Greetings\" let me be the first to welcome you to Earth.",
+                    target: "It was, however, still so hot from its flight through the air. The metal object lay steaming on the damp grass, its surface shimmering with residual heat as the evening dew began to settle around it. Nearby, a curious squirrel approached cautiously, its nose twitching at the unfamiliar scent of scorched alloy mixed with ozone. The object had come from somewhere high above, streaking through the twilight sky like a falling star before embedding itself in the soft earth with a muffled thud. As the minutes passed, the heat gradually dissipated, but the grass beneath remained flattened in a perfect circular pattern, as if marking the spot where something extraordinary had landed. A faint humming sound could still be detected if one listened closely, suggesting there was more to this mysterious arrival than met the eye. The first human to discover it would arrive soon, drawn by the faint glow that persisted despite the cooling metal. What they would make of this strange artifact, and whether they would recognize its significance, remained to be seen. For now, the night insects resumed their chorus, undisturbed by the brief interruption from the heavens, while the object continued its slow return to ambient temperature under the watchful gaze of the crescent moon."
+                },
+                {
+                    id: "common_voice_en_75329-common_voice_en_75330",
+                    ref: "common_voice_en_75329",
+                    prompt: "I would have won the Junior Olympics if not for those medaling kids.",
+                    target: "Looking through the telescope, I saw a circle of deep blue and the little round planet. The view took my breath away as I adjusted the focus knob, bringing the distant world into sharper clarity. That tiny sphere suspended in the velvet darkness of space seemed both impossibly far and intimately close, like a marble someone had carelessly dropped into the cosmic ocean. I wondered about the stories hidden beneath those swirling blue clouds—perhaps vast oceans teeming with life, or towering cities of an advanced civilization going about their daily routines beneath an alien sun. The longer I stared, the more my earthly concerns seemed trivial against the grandeur of the universe. My hands grew slightly numb from gripping the telescope's cold metal barrel, but I couldn't tear myself away from the view. The planet's slow rotation became visible over time, different cloud formations drifting across its surface like brushstrokes on a celestial painting. Somewhere out there, maybe another being was peering back through their own telescope, marveling at our pale blue dot among the stars. The experience left me with a profound sense of connection to everything beyond our atmosphere, a reminder that we're all just temporary passengers on this incredible journey through space and time."
+                },
+                {
+                    id: "common_voice_en_9559-common_voice_en_9560",
+                    ref: "common_voice_en_9559",
+                    prompt: "\"Everyone has his or her own way of learning things,\" he said to himself.",
+                    target: "He didn't consider mending the hole — the stones could fall through any time they wanted. The crumbling wall had stood for decades, weathering storms and neglect with quiet resignation. Each passing season left it more porous, more willing to surrender fragments of itself to gravity's persistent tug. Neighbors would occasionally glance at the growing gap with mild concern, but nobody ever brought tools or mortar to address the slow collapse. There was something poetic about its gradual disintegration, a silent rebellion against the very idea of permanence. Children would sometimes dare each other to toss pebbles through the opening, marveling at how the tiny projectiles disappeared into the darkness beyond. The wall had become less a barrier and more a curiosity, its original purpose forgotten along with the hands that had built it. Birds nested in its crevices, spiders spun intricate webs between the loose stones, and ivy crept steadily upward as if trying to stitch the wound closed with living thread. At night, when the wind blew just right, you could hear faint whispers as air passed through the gap—some claimed it carried fragments of old conversations trapped in the masonry. The hole grew wider by imperceptible degrees, marking time not in years but in fallen fragments, each small collapse another sentence in the wall's slow farewell. One day, perhaps, the entire structure would surrender to entropy, leaving only memories and a faint outline in the earth where something solid once stood."
+                }
+            ];
+
+            // Relative paths for deployment (e.g. GitHub Pages)
+            const base = "";
+            const systems = [
+                { key: "1000hr", label: "Proposed (Ours)", cssClass: "proposed" },
+                { key: "baselines_sliding_k_5", label: "Sliding-Window", cssClass: "" },
+                { key: "pretrained_bistream", label: "Interleaved", cssClass: "" }
+            ];
+
+            function escapeHtml(s) {
+                const div = document.createElement("div");
+                div.textContent = s;
+                return div.innerHTML;
+            }
+
+            const container = document.getElementById("samples-container");
+            samples.forEach(function (s, idx) {
+                const card = document.createElement("div");
+                card.className = "sample-card";
+                card.innerHTML =
+                    "<h3>Sample " + (idx + 1) + "</h3>" +
+                    "<div class=\"ref-box\">" +
+                    "  <div class=\"label\">Reference (zero-shot prompt)</div>" +
+                    "  <div class=\"text-content\">" + escapeHtml(s.prompt) + "</div>" +
+                    "  <audio controls preload=\"metadata\" src=\"" + base + "reference_speaker/" + escapeHtml(s.ref) + ".wav\"></audio>" +
+                    "</div>" +
+                    "<div class=\"target-label\">Target text (streaming input)</div>" +
+                    "<div class=\"text-content\">" + escapeHtml(s.target) + "</div>" +
+                    "<div class=\"systems\">" +
+                    systems.map(function (sys) {
+                        const src = base + "llm/" + sys.key + "/" + s.id + ".wav";
+                        return (
+                            "<div class=\"system-row\">" +
+                            "  <div class=\"system-name " + sys.cssClass + "\">" + escapeHtml(sys.label) + "</div>" +
+                            "  <div class=\"audio-cell\"><audio controls preload=\"metadata\" src=\"" + src + "\"></audio></div>" +
+                            "</div>"
+                        );
+                    }).join("") +
+                    "</div>";
+                container.appendChild(card);
+            });
+        })();
+    </script>
+</body>
+</html>
